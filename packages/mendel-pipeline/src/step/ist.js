@@ -40,7 +40,7 @@ class IndependentSourceTransform extends BaseStep {
 
     getTransform(filePath) {
         const extname = path.extname(filePath);
-        let transformIds = this._extToTransformIds.get(extname) || [];
+        let transformIds = ['raw'].concat(this._extToTransformIds.get(extname) || []);
         let effectiveExt = extname;
 
         if (this._parserExtMap.has(extname)) {
@@ -62,12 +62,13 @@ class IndependentSourceTransform extends BaseStep {
 
     perform(entry) {
         const filePath = entry.id;
-        const source = entry.getSource(['raw']);
-        const {transformIds, effectiveExt} = this.getTransform(filePath);
+        let {transformIds, effectiveExt} = this.getTransform(filePath);
+        const {transformIds: closestTransformIds, source} = entry.getClosestSource(transformIds);
+        const prunedTransformIds = transformIds.slice(closestTransformIds.length);
 
         let promise = Promise.resolve();
-        if (transformIds.length) {
-            promise = promise.then(() => this._transformer.transform(filePath, transformIds, source));
+        if (prunedTransformIds.length) {
+            promise = promise.then(() => this._transformer.transform(filePath, prunedTransformIds, source));
         }
 
         promise

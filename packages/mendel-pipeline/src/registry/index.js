@@ -1,14 +1,12 @@
 const EventEmitter = require('events').EventEmitter;
-const MendelCache = require('../cache');
-const error = require('debug')('mendel:registry:error');
 const verbose = require('debug')('verbose:mendel:registry');
 
 class MendelRegistry extends EventEmitter {
-    constructor(config) {
+    constructor(mendelCache) {
         super();
 
-        this._steps = config.steps;
-        this._mendelCache = new MendelCache(config);
+        this._mendelCache = mendelCache;
+        this._mendelCache.on('ready', () => this.emit('ready'));
     }
 
     emit(eventName, entry) {
@@ -25,39 +23,26 @@ class MendelRegistry extends EventEmitter {
     }
 
     addEntry(filePath) {
-        this._mendelCache.addEntry(filePath, this._steps);
+        this._mendelCache.addEntry(filePath);
     }
 
     addRawSource(filePath, source) {
-        const entry = this._mendelCache.getEntry(filePath);
-        entry.setSource(['raw'], source);
+        this._mendelCache.setSource({id: filePath, transformIds: ['raw'], source});
     }
 
     addTransformedSource({filePath, transformIds, effectiveExt, source}) {
-        if (!this._mendelCache.hasEntry(filePath)) {
-            error(`Adding a source to a file that is unknown. This should be not possible: ${filePath}`);
-            this._mendelCache.addEntry(filePath, source);
-        }
-
-        const entry = this._mendelCache.getEntry(filePath);
-        entry.setEffectiveExt(effectiveExt);
-        entry.setSource(transformIds, source);
+        this._mendelCache.setSource({id: filePath, transformIds, source, effectiveExt});
     }
 
     setDependencies(filePath, deps) {
-        if (!this._mendelCache.hasEntry(filePath)) return;
-
         this._mendelCache.setDependencies(filePath, deps);
     }
 
-    invalidateDepedencies(filePath) {
-        // TODO modify entries and its deps recursively
-        if (!this._mendelCache.hasEntry(filePath)) return;
+    setStep(filePath, step) {
+        this._mendelCache.setStep(filePath, step);
     }
 
     remove(filePath) {
-        if (!this._mendelCache.hasEntry(filePath)) return;
-
         this._mendelCache.deleteEntry(filePath);
 
         // Because Entry is deleted, we don't really dispatch with the Entry
@@ -66,6 +51,10 @@ class MendelRegistry extends EventEmitter {
 
     getEntry(filePath) {
         return this._mendelCache.getEntry(filePath);
+    }
+
+    getAllEntryIds() {
+        return Array.from(this._mendelCache._store.keys());
     }
 
     hasEntry(filePath) {

@@ -36,8 +36,14 @@ class DepsManager extends BaseStep {
 
                     Object.keys(deps).map(key => deps[key]).forEach(({browser, main}) => {
                         // In case the entry is missing for dependency, time to add them into our pipeline.
-                        if (!this._registry.hasEntry(browser)) this._registry.addToPipeline(browser);
-                        if (!this._registry.hasEntry(main)) this._registry.addToPipeline(main);
+                        this._registry.hasEntry(browser).then(hasEntry => {
+                            if (hasEntry) return;
+                            this._registry.addToPipeline(browser);
+                        });
+                        this._registry.hasEntry(main).then(hasEntry => {
+                            if (hasEntry) return;
+                            this._registry.addToPipeline(main);
+                        });
                     });
                     this._registry.setDependencies(filePath, deps);
                 }
@@ -59,12 +65,14 @@ class DepsManager extends BaseStep {
             return this._registry.setDependencies(entry.id, {});
         }
 
-        if (entry.step < 4) {
+        if (entry.step < 3) {
             this._queue.push({
                 filePath: entry.id,
                 source: entry.getSource(transformIds),
                 variation: entry.variation,
             });
+        } else {
+            this.emit('done', {entryId: entry.id});
         }
 
         this.next();
