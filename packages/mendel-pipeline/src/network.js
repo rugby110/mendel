@@ -33,6 +33,7 @@ module.exports = {
     getServer(addr) {
         const server = net.createServer().listen({path: addr});
         process.on('exit', () => server.close());
+        process.on('SIGINT', () => server.close());
         server.on('connection', socket => socket.setEncoding('utf8'));
         return server;
     },

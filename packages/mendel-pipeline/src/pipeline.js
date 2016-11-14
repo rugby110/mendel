@@ -91,5 +91,3 @@ function MendelPipeline(options) {
     // COMMENCE!
     registry.on('ready', () => initializer.start());
 }
-
-process.on('SIGINT', () => process.exit());
